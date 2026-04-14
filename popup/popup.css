@@ -1,7 +1,7 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  min-width: 240px;
+  min-width: 320px;
   background: #101318;
   color: #f3f4f6;
 }
@@ -21,8 +21,58 @@ h1 {
   font-size: 12px;
 }
 
-#debt {
+#debt,
+#streak {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+}
+
+#streak {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.sites {
+  margin-bottom: 10px;
+}
+
+.sites h2 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  background: #0b0e13;
+  border: 1px solid #2e3747;
+  color: #f3f4f6;
+  border-radius: 6px;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+button {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 12px;
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-state {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+  min-height: 16px;
 }

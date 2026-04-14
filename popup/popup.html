@@ -9,8 +9,22 @@
   <body>
     <main class="popup">
       <h1>Debt Collector</h1>
-      <p class="meta">Phase 1 prototype</p>
+      <p class="meta" id="status">Status: --</p>
       <p id="debt">Debt: --:--</p>
+      <p id="streak">Streak: -- days</p>
+
+      <section class="sites">
+        <h2>Banned Sites</h2>
+        <textarea id="bannedSites" rows="5"></textarea>
+      </section>
+
+      <section class="sites">
+        <h2>Productive Sites</h2>
+        <textarea id="productiveSites" rows="5"></textarea>
+      </section>
+
+      <button id="saveSites" type="button">Save Site Lists</button>
+      <p id="saveState" class="save-state"></p>
     </main>
     <script src="popup.js"></script>
   </body>
