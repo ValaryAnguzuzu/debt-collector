@@ -1,1 +1,57 @@
-/* Phase 1 placeholder styles for future block overlay. */
+#debt-collector-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f1115;
+  color: #f3f4f6;
+  font-family: Arial, sans-serif;
+}
+
+#debt-collector-overlay .dc-card {
+  width: min(520px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #2a2f3a;
+  background: #171b23;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+#debt-collector-overlay h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+
+#debt-collector-overlay .dc-subtitle {
+  margin: 0 0 14px;
+  color: #c9d1d9;
+}
+
+#debt-collector-overlay .dc-debt {
+  margin: 0 0 14px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+#debt-collector-overlay .dc-links-title {
+  margin: 0 0 8px;
+  color: #9aa3b2;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#debt-collector-overlay .dc-links {
+  margin: 0;
+  padding-left: 18px;
+}
+
+#debt-collector-overlay .dc-links li {
+  margin: 4px 0;
+}
+
+#debt-collector-overlay .dc-links a {
+  color: #7fb3ff;
+}
