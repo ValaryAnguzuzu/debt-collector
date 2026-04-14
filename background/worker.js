@@ -3,6 +3,17 @@ import { classifyUrl } from "./sites.js";
 
 const ALARM_NAME = "debt-tick";
 
+async function safeBroadcast(message) {
+  try {
+    await chrome.runtime.sendMessage(message);
+  } catch (err) {
+    // This is expected when popup/content listeners are not open.
+    if (!String(err?.message || "").includes("Receiving end does not exist")) {
+      console.error("Broadcast failed:", err);
+    }
+  }
+}
+
 async function getActiveTab() {
   try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -44,7 +55,7 @@ async function runDebtTick() {
   const savedDebt = await setDebtSeconds(debtSeconds);
 
   // Notify listeners that debt has changed.
-  chrome.runtime.sendMessage({
+  await safeBroadcast({
     type: "DEBT_UPDATED",
     payload: { debtSeconds: savedDebt, streakDays: state.streakDays ?? 0 }
   });
