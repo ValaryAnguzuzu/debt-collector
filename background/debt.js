@@ -73,3 +73,32 @@ export function applyDebtTick(state, classification) {
 
   return Math.max(0, Math.round(updatedDebt));
 }
+
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function toMinutes(timeString) {
+  const [hours, minutes] = String(timeString).split(":").map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+export function isWithinWorkHours(workHours, now = new Date()) {
+  const dayKey = DAY_KEYS[now.getDay()];
+  const dayRange = workHours?.[dayKey];
+
+  if (!Array.isArray(dayRange) || dayRange.length !== 2) {
+    return false;
+  }
+
+  const start = toMinutes(dayRange[0]);
+  const end = toMinutes(dayRange[1]);
+  if (start === null || end === null) {
+    return false;
+  }
+
+  const current = now.getHours() * 60 + now.getMinutes();
+  return current >= start && current < end;
+}

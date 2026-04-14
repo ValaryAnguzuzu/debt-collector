@@ -1,4 +1,10 @@
-import { applyDebtTick, ensureDefaultState, getState, setDebtSeconds } from "./debt.js";
+import {
+  applyDebtTick,
+  ensureDefaultState,
+  getState,
+  isWithinWorkHours,
+  setDebtSeconds
+} from "./debt.js";
 import { classifyUrl } from "./sites.js";
 
 const ALARM_NAME = "debt-tick";
@@ -22,6 +28,48 @@ async function getActiveTab() {
     console.error("Failed to query active tab:", err);
     return null;
   }
+}
+
+async function sendToTab(tabId, message) {
+  if (!Number.isInteger(tabId)) {
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tabId, message);
+  } catch (err) {
+    if (!String(err?.message || "").includes("Receiving end does not exist")) {
+      console.error("Tab message failed:", err);
+    }
+  }
+}
+
+async function updateBlockStateForTab(tab, source) {
+  if (!tab?.url) {
+    return;
+  }
+
+  const state = await getState();
+  const classification = classifyUrl(tab.url, state.bannedSites, state.productiveSites);
+  const inWorkHours = isWithinWorkHours(state.workHours);
+  const shouldBlock = Boolean(inWorkHours && classification.isBanned && (state.debtSeconds ?? 0) > 0);
+
+  await sendToTab(tab.id, {
+    type: "BLOCK_STATUS",
+    payload: {
+      shouldBlock,
+      debtSeconds: state.debtSeconds ?? 0,
+      productiveSites: state.productiveSites ?? []
+    }
+  });
+
+  console.log(`[DebtCollector][block-check:${source}]`, {
+    tabId: tab.id,
+    url: tab.url,
+    shouldBlock,
+    inWorkHours,
+    debtSeconds: state.debtSeconds ?? 0
+  });
 }
 
 async function classifyAndLogTab(tab, source) {
@@ -50,6 +98,16 @@ async function runDebtTick() {
   }
 
   const state = await getState();
+  const inWorkHours = isWithinWorkHours(state.workHours);
+  if (!inWorkHours) {
+    await safeBroadcast({
+      type: "DEBT_UPDATED",
+      payload: { debtSeconds: state.debtSeconds ?? 0, streakDays: state.streakDays ?? 0, inWorkHours }
+    });
+    await updateBlockStateForTab(tab, "tick-off-hours");
+    return;
+  }
+
   const classification = classifyUrl(tab.url, state.bannedSites, state.productiveSites);
   const debtSeconds = applyDebtTick(state, classification);
   const savedDebt = await setDebtSeconds(debtSeconds);
@@ -57,8 +115,9 @@ async function runDebtTick() {
   // Notify listeners that debt has changed.
   await safeBroadcast({
     type: "DEBT_UPDATED",
-    payload: { debtSeconds: savedDebt, streakDays: state.streakDays ?? 0 }
+    payload: { debtSeconds: savedDebt, streakDays: state.streakDays ?? 0, inWorkHours }
   });
+  await updateBlockStateForTab(tab, "tick");
 
   console.log("[DebtCollector][tick]", {
     hostname: classification.hostname,
@@ -71,6 +130,11 @@ async function runDebtTick() {
 async function initEngine() {
   await ensureDefaultState();
   await chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 });
+  const tab = await getActiveTab();
+  if (tab) {
+    await classifyAndLogTab(tab, "init");
+    await updateBlockStateForTab(tab, "init");
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -91,6 +155,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   try {
     const tab = await chrome.tabs.get(tabId);
     await classifyAndLogTab(tab, "onActivated");
+    await updateBlockStateForTab(tab, "onActivated");
   } catch (err) {
     console.error("Tab activation handling failed:", err);
   }
@@ -104,15 +169,46 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   classifyAndLogTab(tab, "onUpdated").catch((err) => {
     console.error("Tab update handling failed:", err);
   });
+  updateBlockStateForTab(tab, "onUpdated").catch((err) => {
+    console.error("Block state update failed:", err);
+  });
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "GET_STATE") {
     getState()
-      .then((state) => sendResponse({ type: "STATE_RESPONSE", payload: state }))
+      .then((state) =>
+        sendResponse({
+          type: "STATE_RESPONSE",
+          payload: { ...state, inWorkHours: isWithinWorkHours(state.workHours) }
+        })
+      )
       .catch((err) => {
         console.error("Failed to respond with state:", err);
         sendResponse({ type: "STATE_RESPONSE", payload: null });
+      });
+    return true;
+  }
+
+  if (message?.type === "SITES_UPDATED") {
+    const bannedSites = Array.isArray(message.payload?.bannedSites) ? message.payload.bannedSites : [];
+    const productiveSites = Array.isArray(message.payload?.productiveSites)
+      ? message.payload.productiveSites
+      : [];
+
+    chrome.storage.local
+      .set({ bannedSites, productiveSites })
+      .then(async () => {
+        const tab = await getActiveTab();
+        if (tab) {
+          await classifyAndLogTab(tab, "sites-updated");
+          await updateBlockStateForTab(tab, "sites-updated");
+        }
+        sendResponse({ ok: true });
+      })
+      .catch((err) => {
+        console.error("Failed to save site lists:", err);
+        sendResponse({ ok: false });
       });
     return true;
   }
