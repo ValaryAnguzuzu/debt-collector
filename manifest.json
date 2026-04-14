@@ -3,7 +3,7 @@
   "name": "Debt Collector",
   "version": "0.1.0",
   "description": "Track distraction debt and repay it with focused work.",
-  "permissions": ["storage", "tabs", "alarms"],
+  "permissions": ["storage", "tabs", "alarms", "notifications"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background/worker.js",

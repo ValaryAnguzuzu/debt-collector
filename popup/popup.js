@@ -14,6 +14,8 @@ function renderState(state) {
   debtEl.textContent = `Debt: ${formatSeconds(debtSeconds)}`;
   streakEl.textContent = `Streak: ${state?.streakDays ?? 0} days`;
   statusEl.textContent = `Status: ${inWorkHours ? "Work hours active" : "Off hours"}`;
+  currentForgiveSession = state?.forgiveSession ?? null;
+  renderForgiveState(currentForgiveSession);
 }
 
 function parseSites(text) {
@@ -35,36 +37,75 @@ function setSaveState(text) {
   saveStateEl.textContent = text;
 }
 
-function loadState() {
-  chrome.runtime.sendMessage({ type: "GET_STATE" }, (response) => {
-    const state = response?.payload || {};
-    renderState(state);
-    setSiteInputs(state);
+function renderForgiveState(forgiveSession) {
+  const forgiveEl = document.getElementById("forgiveState");
+  if (!forgiveSession?.endsAt) {
+    forgiveEl.textContent = "No active forgiveness session.";
+    return;
+  }
+
+  const remaining = Math.max(0, Math.round((forgiveSession.endsAt - Date.now()) / 1000));
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  forgiveEl.textContent = `Active for ${forgiveSession.site} (${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} left)`;
+}
+
+let currentForgiveSession = null;
+
+function sendRuntimeMessage(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ ok: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      resolve(response ?? { ok: false });
+    });
   });
 }
 
-function saveSites() {
+async function loadState() {
+  const response = await sendRuntimeMessage({ type: "GET_STATE" });
+  const state = response?.payload || {};
+  renderState(state);
+  setSiteInputs(state);
+}
+
+async function saveSites() {
   const bannedSites = parseSites(document.getElementById("bannedSites").value);
   const productiveSites = parseSites(document.getElementById("productiveSites").value);
+  const response = await sendRuntimeMessage({
+    type: "SITES_UPDATED",
+    payload: { bannedSites, productiveSites }
+  });
 
-  chrome.runtime.sendMessage(
-    {
-      type: "SITES_UPDATED",
-      payload: { bannedSites, productiveSites }
-    },
-    (response) => {
-      if (response?.ok) {
-        setSaveState("Saved.");
-        loadState();
-      } else {
-        setSaveState("Failed to save.");
-      }
-    }
-  );
+  if (response?.ok) {
+    setSaveState("Saved.");
+    loadState();
+  } else {
+    setSaveState("Failed to save.");
+  }
+}
+
+async function startForgiveSession() {
+  const durationMinutes = Number(document.getElementById("forgiveDuration").value);
+  const response = await sendRuntimeMessage({
+    type: "FORGIVE_SESSION",
+    payload: { durationMinutes }
+  });
+
+  if (response?.ok) {
+    setSaveState("Forgiveness started.");
+    loadState();
+  } else {
+    setSaveState("Failed to start forgiveness.");
+  }
 }
 
 document.getElementById("saveSites").addEventListener("click", saveSites);
+document.getElementById("startForgive").addEventListener("click", startForgiveSession);
 loadState();
+setInterval(() => renderForgiveState(currentForgiveSession), 1000);
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === "DEBT_UPDATED") {

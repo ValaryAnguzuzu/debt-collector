@@ -23,6 +23,10 @@ const DEFAULT_STATE = {
   allTimeStreak: 0,
   badges: [],
   history: [],
+  siteDebtTotals: {},
+  hourlyDebtTotals: {},
+  repaymentSessions: [],
+  activeDebtStartedAt: null,
   forgiveSession: null,
   onboardingComplete: false
 };
@@ -58,6 +62,18 @@ export async function setDebtSeconds(debtSeconds) {
     return clamped;
   } catch (err) {
     console.error("Failed to write debt:", err);
+    return clamped;
+  }
+}
+
+export async function setDebtAndHistory({ debtSeconds, history }) {
+  const clamped = Math.max(0, Math.round(debtSeconds));
+  const safeHistory = Array.isArray(history) ? history.slice(-90) : [];
+  try {
+    await chrome.storage.local.set({ debtSeconds: clamped, history: safeHistory });
+    return clamped;
+  } catch (err) {
+    console.error("Failed to write debt/history:", err);
     return clamped;
   }
 }
@@ -101,4 +117,72 @@ export function isWithinWorkHours(workHours, now = new Date()) {
 
   const current = now.getHours() * 60 + now.getMinutes();
   return current >= start && current < end;
+}
+
+function todayKey(now = new Date()) {
+  return now.toISOString().slice(0, 10);
+}
+
+export function updateHistory(history, previousDebt, nextDebt, now = new Date()) {
+  const delta = Math.round(nextDebt - previousDebt);
+  if (delta === 0) {
+    return Array.isArray(history) ? history.slice(-90) : [];
+  }
+
+  const list = Array.isArray(history) ? [...history] : [];
+  const date = todayKey(now);
+  const existingIndex = list.findIndex((item) => item?.date === date);
+  const existing =
+    existingIndex >= 0
+      ? list[existingIndex]
+      : { date, debtAccrued: 0, debtRepaid: 0, cleanDay: nextDebt === 0 };
+
+  if (delta > 0) {
+    existing.debtAccrued += delta;
+  } else {
+    existing.debtRepaid += Math.abs(delta);
+  }
+  existing.cleanDay = nextDebt === 0;
+
+  if (existingIndex >= 0) {
+    list[existingIndex] = existing;
+  } else {
+    list.push(existing);
+  }
+
+  return list.slice(-90);
+}
+
+export function computeStreakFromHistory(history) {
+  const list = Array.isArray(history) ? [...history].sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
+  let streak = 0;
+
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i]?.cleanDay) {
+      streak += 1;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+export function computeBadges(state, history, previousDebt, currentDebt) {
+  const next = new Set(Array.isArray(state?.badges) ? state.badges : []);
+  const streak = computeStreakFromHistory(history);
+
+  if (streak >= 5) {
+    next.add("clean_week");
+  }
+
+  if (previousDebt >= 60 * 60 && currentDebt === 0) {
+    next.add("comeback");
+  }
+
+  if (previousDebt > 0 && currentDebt === 0 && previousDebt <= 10 * 60) {
+    next.add("speed_repay");
+  }
+
+  return [...next];
 }

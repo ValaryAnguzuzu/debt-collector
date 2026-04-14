@@ -76,3 +76,32 @@ button {
   color: #9ca3af;
   min-height: 16px;
 }
+
+.forgive {
+  margin-top: 12px;
+}
+
+.help {
+  margin: 0 0 8px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.forgive-row {
+  display: flex;
+  gap: 8px;
+}
+
+select {
+  flex: 1;
+  border-radius: 6px;
+  border: 1px solid #2e3747;
+  background: #0b0e13;
+  color: #f3f4f6;
+  padding: 8px;
+}
+
+#startForgive {
+  width: 100px;
+  background: #7c3aed;
+}
