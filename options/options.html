@@ -4,11 +4,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Debt Collector Settings</title>
+    <link rel="stylesheet" href="options.css" />
   </head>
   <body>
-    <main>
+    <main class="settings">
       <h1>Debt Collector Settings</h1>
-      <p>Phase 1 scaffold. Full settings arrive in Phase 2.</p>
+      <p class="meta">Configure work hours for debt tracking.</p>
+      <div class="preset-row">
+        <button data-preset="nineToFive" type="button">9-to-5</button>
+        <button data-preset="deepWork" type="button">Deep Work</button>
+        <button data-preset="alwaysOn" type="button">Always On</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Enabled</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+        <tbody id="workHoursBody"></tbody>
+      </table>
+      <button id="saveWorkHours" type="button">Save Work Hours</button>
+      <p id="saveState"></p>
     </main>
     <script src="options.js"></script>
   </body>
